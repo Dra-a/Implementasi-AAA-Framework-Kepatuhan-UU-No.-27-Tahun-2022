@@ -13,7 +13,7 @@ var Pool *pgxpool.Pool
 
 func Init() {
 	ctx := context.Background()
-	dsn := "postgres://security_user:super_secret_password@localhost:5432/aaa_exhibition?sslmode=disable"
+	dsn := "postgres://security_user:super_secret_password@127.0.0.1:5432/aaa_exhibition?sslmode=disable"
 	var err error
 
 	Pool, err = pgxpool.New(ctx, dsn)

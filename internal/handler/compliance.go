@@ -23,7 +23,7 @@ func GetMyData(w http.ResponseWriter, r *http.Request) {
 func UpdateMyData(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	ar req struct {
+	var req struct {
 		Username string `json:"username"`
 		Email    string `json:"email"`
 	}
