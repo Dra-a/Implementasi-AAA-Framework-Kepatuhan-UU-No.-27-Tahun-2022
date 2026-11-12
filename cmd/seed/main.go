@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	dsn      = "postgres://security_user:super_secret_password@localhost:5432/aaa_exhibition?sslmode=disable" // Change to your DSN
+	dsn      = "postgres://security_user:super_secret_password@127.0.0.1:5432/aaa_exhibition?sslmode=disable" // Change to your DSN
 	seedFile = "seeds/seed_data.xlsx"
 )
 
