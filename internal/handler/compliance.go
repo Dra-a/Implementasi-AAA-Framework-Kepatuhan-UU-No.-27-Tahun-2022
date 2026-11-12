@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"aaa_bekend/internal/db"
 	"aaa_bekend/internal/lmodel"
 	"encoding/json"
 	"net/http"
@@ -11,9 +10,12 @@ import (
 func GetMyData(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	//TODO
+	profile, err := lmodel.GetUserProfile(user.ID)
 
-	//TODO
+	if err != nil {
+		http.Error(w, "Failed to get user data", http.StatusInternalServerError)
+		return
+	}
 
 	json.NewEncoder(w).Encode(profile)
 }
@@ -21,9 +23,19 @@ func GetMyData(w http.ResponseWriter, r *http.Request) {
 func UpdateMyData(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	// TODO
+	ar req struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
-	//TODO
+	if err := lmodel.UpdateUserProfile(user.ID, req.Username, req.Email); err != nil {
+		http.Error(w, "Failed to update data", http.StatusInternalServerError)
+		return
+	}
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"message":  "Data updated successfully",
@@ -34,9 +46,12 @@ func UpdateMyData(w http.ResponseWriter, r *http.Request) {
 func GetMyAuditLog(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	// TODO
+	logs, err := lmodel.GetAuditLogsByUserID(user.ID)
 
-	// TODO
+	if err != nil {
+		http.Error(w, "Failed to get audit logs", http.StatusInternalServerError)
+		return
+	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"user":  user.Username,
@@ -46,33 +61,23 @@ func GetMyAuditLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func ExportMyData(w http.ResponseWriter, r *http.Request) {
-	user, err := lmodel.UserFromContext(r.Context())
+	user, _ := lmodel.UserFromContext(r.Context())
 
+	profile, err := lmodel.GetUserProfile(user.ID)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, "Failed to get user data", http.StatusInternalServerError)
+		return
+	}
+	projects, err := lmodel.GetProjectsByUserID(user.ID)
+	if err != nil {
+		http.Error(w, "Failed to get projects", http.StatusInternalServerError)
 		return
 	}
 
-	profile, err := db.GetUserByID(r.Context(), user.ID)
+	logs, err := lmodel.GetAuditLogsByUserID(user.ID)
 	if err != nil {
-		http.Error(w, "Failed to retrieve user data", http.StatusInternalServerError)
+		http.Error(w, "Failed to get audit logs", http.StatusInternalServerError)
 		return
-	}
-	projects, err := db.GetUserProjects(r.Context(), user.ID)
-	if err != nil {
-		http.Error(w, "Failed to retrieve projects", http.StatusInternalServerError)
-		return
-	}
-	logs, err := db.GetUserAuditLogs(r.Context(), user.ID)
-	if err != nil {
-		http.Error(w, "Failed to retrieve audit logs", http.StatusInternalServerError)
-		return
-	}
-	if projects == nil {
-		projects = []lmodel.Project{}
-	}
-	if logs == nil {
-		logs = []lmodel.AuditLog{}
 	}
 
 	export := map[string]interface{}{
@@ -88,18 +93,10 @@ func ExportMyData(w http.ResponseWriter, r *http.Request) {
 func DeleteMyAccount(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	user, err := lmodel.UserFromContext(r.Context())
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	if err := db.DeleteUserAccount(r.Context(), user.ID); err != nil {
+	if err := lmodel.DeleteUserAndData(user.ID); err != nil {
 		http.Error(w, "Failed to delete account", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Your account and all data have been permanently deleted",
