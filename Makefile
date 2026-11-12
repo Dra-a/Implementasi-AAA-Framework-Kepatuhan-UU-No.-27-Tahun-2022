@@ -16,9 +16,8 @@ clean:
 	rm -rf bin/ keys/	
 
 keys:
-	mkdir -p keys
-	openssl genrsa -out keys/private.pem 2048
-	openssl rsa -in keys/private.pem -pubout -out keys/public.pem
+	"C:/Program Files/OpenSSL-Win64/bin/openssl.exe" genrsa -out keys/private.pem 2048
+	"C:/Program Files/OpenSSL-Win64/bin/openssl.exe" rsa -in keys/private.pem -pubout -out keys/public.pem
 
 seed: 
 	go run cmd/seed/main.go
