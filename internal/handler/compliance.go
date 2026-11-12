@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"aaa_bekend/internal/db"
 	"aaa_bekend/internal/lmodel"
 	"encoding/json"
 	"net/http"
@@ -45,11 +46,34 @@ func GetMyAuditLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func ExportMyData(w http.ResponseWriter, r *http.Request) {
-	user, _ := lmodel.UserFromContext(r.Context())
+	user, err := lmodel.UserFromContext(r.Context())
 
-	// TODO
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
-	// TODO
+	profile, err := db.GetUserByID(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve user data", http.StatusInternalServerError)
+		return
+	}
+	projects, err := db.GetUserProjects(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve projects", http.StatusInternalServerError)
+		return
+	}
+	logs, err := db.GetUserAuditLogs(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "Failed to retrieve audit logs", http.StatusInternalServerError)
+		return
+	}
+	if projects == nil {
+		projects = []lmodel.Project{}
+	}
+	if logs == nil {
+		logs = []lmodel.AuditLog{}
+	}
 
 	export := map[string]interface{}{
 		"exported_at": time.Now(),
@@ -64,7 +88,18 @@ func ExportMyData(w http.ResponseWriter, r *http.Request) {
 func DeleteMyAccount(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	// TODO
+	user, err := lmodel.UserFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err := db.DeleteUserAccount(r.Context(), user.ID); err != nil {
+		http.Error(w, "Failed to delete account", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Your account and all data have been permanently deleted",
