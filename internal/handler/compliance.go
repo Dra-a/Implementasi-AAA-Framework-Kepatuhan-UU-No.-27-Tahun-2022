@@ -1,16 +1,18 @@
 package handler
 
 import (
+	"aaa_bekend/internal/db"
 	"aaa_bekend/internal/lmodel"
 	"encoding/json"
 	"net/http"
 	"time"
+	"strings"
 )
 
 func GetMyData(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	profile, err := lmodel.GetUserProfile(user.ID)
+	profile, err := db.GetUserByID(r.Context(),user.ID)
 
 	if err != nil {
 		http.Error(w, "Failed to get user data", http.StatusInternalServerError)
@@ -25,14 +27,24 @@ func UpdateMyData(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Username string `json:"username"`
-		Email    string `json:"email"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if err := lmodel.UpdateUserProfile(user.ID, req.Username, req.Email); err != nil {
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Username == "" {
+		http.Error(w, "Username cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Username) > 50 {
+		http.Error(w, "Username must not exceed 50 characters", http.StatusBadRequest)
+		return
+	}
+
+	if err := db.UpdateMyData(r.Context(), user.ID, req.Username); err != nil {
 		http.Error(w, "Failed to update data", http.StatusInternalServerError)
 		return
 	}
@@ -46,11 +58,14 @@ func UpdateMyData(w http.ResponseWriter, r *http.Request) {
 func GetMyAuditLog(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	logs, err := lmodel.GetAuditLogsByUserID(user.ID)
+	logs, err := db.GetUserAuditLogs(r.Context(),user.ID)
 
 	if err != nil {
 		http.Error(w, "Failed to get audit logs", http.StatusInternalServerError)
 		return
+	}
+	if logs == nil {
+		logs = []lmodel.AuditLog{}
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -63,21 +78,27 @@ func GetMyAuditLog(w http.ResponseWriter, r *http.Request) {
 func ExportMyData(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	profile, err := lmodel.GetUserProfile(user.ID)
+	profile, err := db.GetUserByID(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "Failed to get user data", http.StatusInternalServerError)
 		return
 	}
-	projects, err := lmodel.GetProjectsByUserID(user.ID)
+	projects, err := db.GetUserProjects(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "Failed to get projects", http.StatusInternalServerError)
 		return
 	}
 
-	logs, err := lmodel.GetAuditLogsByUserID(user.ID)
+	logs, err := db.GetUserAuditLogs(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "Failed to get audit logs", http.StatusInternalServerError)
 		return
+	}
+	if projects == nil {
+		projects = []lmodel.Project{}
+	}
+	if logs == nil {
+		logs = []lmodel.AuditLog{}
 	}
 
 	export := map[string]interface{}{
@@ -93,7 +114,7 @@ func ExportMyData(w http.ResponseWriter, r *http.Request) {
 func DeleteMyAccount(w http.ResponseWriter, r *http.Request) {
 	user, _ := lmodel.UserFromContext(r.Context())
 
-	if err := lmodel.DeleteUserAndData(user.ID); err != nil {
+	if err := db.DeleteUserAccount(r.Context(), user.ID); err != nil {
 		http.Error(w, "Failed to delete account", http.StatusInternalServerError)
 		return
 	}
